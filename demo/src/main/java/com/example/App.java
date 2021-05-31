@@ -2,10 +2,14 @@ package com.example;
 
 import java.util.Properties;
 
+import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Hello world!
@@ -20,6 +24,9 @@ public final class App {
      */
     public static void main(String[] args) {
         System.out.println("Kafka Simple Producer");
+
+        // Add logger
+        Logger logger = LoggerFactory.getLogger(App.class);
 
         // create Producer properties
         // https://kafka.apache.org/documentation/#producerconfigs
@@ -36,11 +43,30 @@ public final class App {
         // create the producer
         KafkaProducer<String, String> producer = new KafkaProducer<String, String>(properties);
 
-        // create a producer record
-        ProducerRecord<String, String> record = new ProducerRecord<String,String>(topic, message);
+        // produce some records
+        for (int i = 0; i < 10; i++) {
+            // create a producer record
+            ProducerRecord<String, String> record = new ProducerRecord<String,String>(topic, message + " #" + Integer.toString(i));
 
-        // send data async
-        producer.send(record);
+            // send data async
+            producer.send(record, new Callback() {
+                public void onCompletion(RecordMetadata recordMetadata, Exception e) {
+                    if (e == null) {
+                        // success
+                        logger.info(
+                            "---- Received metadata ----" +
+                            "\nTopic: " + recordMetadata.topic() +
+                            "\nPartition: " + recordMetadata.partition() + 
+                            "\nOffset: " + recordMetadata.offset() +
+                            "\nTimestamp: " + recordMetadata.timestamp()
+                        );
+                    } else {
+                        // error
+                        logger.error("Error while producing", e);
+                    }
+                }
+            });
+        }
 
         // producer.flush(); // just flush, or
         producer.close(); // flush and close

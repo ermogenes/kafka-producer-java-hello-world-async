@@ -1,5 +1,5 @@
-# kafka-producer-java-hello-world
-A simple Java Kafka producer.
+# kafka-producer-java-hello-world-async
+A simple Java Kafka async producer.
 
 ## Dependencies (`pom.xml`)
 
@@ -26,6 +26,8 @@ A simple Java Kafka producer.
 ## Code
 
 ```java
+Logger logger = LoggerFactory.getLogger(App.class);
+
 String server = "<you.server.ip.address>:9092";
 String topic = "first_topic";
 String message = "hello world!";
@@ -36,8 +38,27 @@ properties.setProperty(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSeriali
 properties.setProperty(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
 
 KafkaProducer<String, String> producer = new KafkaProducer<String, String>(properties);
-ProducerRecord<String, String> record = new ProducerRecord<String,String>(topic, message);
-producer.send(record);
+
+for (int i = 0; i < 10; i++) {
+    ProducerRecord<String, String> record = new ProducerRecord<String,String>(topic, message + " #" + Integer.toString(i));
+
+    producer.send(record, new Callback() {
+        public void onCompletion(RecordMetadata recordMetadata, Exception e) {
+            if (e == null) {
+                logger.info(
+                    "---- Received metadata ----" +
+                    "\nTopic: " + recordMetadata.topic() +
+                    "\nPartition: " + recordMetadata.partition() + 
+                    "\nOffset: " + recordMetadata.offset() +
+                    "\nTimestamp: " + recordMetadata.timestamp()
+                );
+            } else {
+                logger.error("Error while producing", e);
+            }
+        }
+    });
+}
+
 producer.close();
 ```
 
